@@ -3,12 +3,15 @@ function init()
     var svg = d3.select("#splot")
         .append("svg")
         .attr({width:500, height:500});
-    var x = d3.scale.linear().range([10, 490]);
-    var y = d3.scale.linear().range([490, 10]);
+    var x = d3.scale.linear().range([20, 480]);
+    var y = d3.scale.linear().range([480, 20]);
     var xAccessor = function(d) { return d[0]; };
     var yAccessor = function(d) { return d[1]; };
     var colors = d3.scale.category10();
     var labels;
+    var ruler = d3.scale.linear().domain([0,460]).range([20, 480]);
+    var svgXAxis = d3.svg.axis().scale(ruler);
+    var svgXAxisGroup = svg.append("g").attr("transform", "translate(0, 475)").call(svgXAxis);
 
     var xMarginLeft = 70, xMarginRight = 20;
     var yMarginTop = 20, yMarginBottom = 30;
@@ -17,10 +20,14 @@ function init()
         .attr({width: 500, height: 500});
     var highDScale = d3.scale.linear().range([xMarginLeft, 500 - xMarginRight]);
     var lowDScale = d3.scale.linear().range([500 - yMarginBottom, yMarginTop]);
+    var lowDScale2 = d3.scale.linear().range([500 - yMarginBottom, yMarginTop]);
     var svg2XAxis = d3.svg.axis().scale(highDScale), 
-        svg2YAxis = d3.svg.axis().scale(lowDScale).orient("left");
+        svg2YAxis = d3.svg.axis().scale(lowDScale).orient("right"),
+        svg2YAxisb = d3.svg.axis().scale(lowDScale2).orient("left")
+    ;
     var svg2XAxisGroup = svg2.append("g").attr("transform", "translate(0," + (500 - yMarginBottom) + ")").call(svg2XAxis);
     var svg2YAxisGroup = svg2.append("g").attr("transform", "translate(" + xMarginLeft + ",0)").call(svg2YAxis);
+    var svg2YAxisGroupb = svg2.append("g").attr("transform", "translate(" + xMarginLeft + ",0)").call(svg2YAxisb);
 
     var canvas = d3.select("#dists")
         .append("div").style("position", "absolute").style("left", xMarginLeft + "px").style("top", yMarginTop + "px")
@@ -40,12 +47,18 @@ function init()
     var luxYAttributeBuffer, 
         luxYMinParameter = Shade.parameter("float", -1), 
         luxYMaxParameter = Shade.parameter("float", 1);
+    var highDExtent;
+    var highDFrob;
     Lux.Net.binary("D.raw", function(buf) {
         highD_dists = new Float32Array(buf);
-        highDScale.domain(d3.extent(highD_dists));
+        highDFrob = d3.sum(highD_dists);
+        highDExtent = d3.extent(highD_dists, function(d) { return Math.sqrt(d); });
+        highDScale.domain(highDExtent);
+        console.log(highDScale.domain());
         svg2XAxisGroup.call(svg2XAxis);
         lowD_dists = new Float32Array(highD_dists);
-        luxXScale = Shade.Utils.fit(highD_dists);
+        debugger;
+        luxXScale = Shade.Scale.linear({domain: highDScale.domain(), range: [0,1]});
         luxYScale = Shade.Scale.linear({
             domain: [luxYMinParameter, luxYMaxParameter], 
             range: [0, 1]
@@ -53,13 +66,13 @@ function init()
         luxYAttributeBuffer = Lux.attributeBuffer({ vertexArray: lowD_dists, itemSize: 1, keepArray: false });
         luxScatterplot = Lux.Scene.add(Lux.Marks.scatterplot({
             elements: highD_dists.length,
-            x: Lux.attributeBuffer({ vertexArray: highD_dists, itemSize: 1, keepArray: false }),
-            y: luxYAttributeBuffer,
+            x: Shade.sqrt(Lux.attributeBuffer({ vertexArray: highD_dists, itemSize: 1, keepArray: false })),
+            y: Shade.sqrt(luxYAttributeBuffer),
             xScale: luxXScale,
             yScale: luxYScale,
             fillColor: Shade.color("red", 0.01),
             strokeColor: Shade.color("red", 0.01),
-            pointDiameter: 2,
+            pointDiameter: 3,
             mode: Lux.DrawingMode.over
         }));
     });
@@ -69,6 +82,7 @@ function init()
             var circles = svg.selectAll("circle");
             x.domain(d3.extent(data, xAccessor));
             y.domain(d3.extent(data, yAccessor));
+            var lowDFrob = 0;
             if (lowD_dists) {
                 var min = 1e100, max = -1e100;
                 for (var i=0; i<data.length; ++i) {
@@ -84,14 +98,26 @@ function init()
                         lowD_dists[i*data.length+j] = d2;
                         min = Math.min(min, d2);
                         max = Math.max(max, d2);
+                        lowDFrob += d2;
                     }
                 }
+                lowDScale2.domain([Math.sqrt(min), Math.sqrt(max)]);
+                ruler.domain([Math.sqrt(min), Math.sqrt(max)]);
+                min *= highDFrob / lowDFrob;
+                max *= highDFrob / lowDFrob;
+                for (i=0; i<lowD_dists.length; ++i) {
+                    lowD_dists[i] *= highDFrob / lowDFrob;
+                }
                 luxYAttributeBuffer.set(lowD_dists);
-                lowDScale.domain([min, max]);
-                luxYMinParameter.set(min);
-                luxYMaxParameter.set(max);
+                lowDScale.domain([Math.sqrt(min), Math.sqrt(max)]);
+                luxYMinParameter.set(Math.sqrt(min));
+                luxYMaxParameter.set(Math.sqrt(max));
                 Lux.Scene.invalidate();
                 svg2YAxisGroup.transition().call(svg2YAxis);
+                svg2YAxisGroupb.transition().call(svg2YAxisb);
+                // highDScale.domain([highDExtent[0] / highDFrob * lowDFrob,
+                //                    highDExtent[1] / highDFrob * lowDFrob]);
+                svgXAxisGroup.transition().call(svgXAxis);
             }
             function setAttrs(sel) {
                 sel.attr("cx", function(d) { return x(xAccessor(d)); })
