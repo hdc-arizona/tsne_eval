@@ -138,7 +138,6 @@ function init()
                     yRange: [0, 40],
                     xDomain: highDScale.domain()
                 }, function(data) {
-                    debugger;
                     lowDScale2.domain(data.yDomain);
                     lowDScale.domain([
                         data.yDomain[0] * Math.sqrt(highDFrob / data.lowDFrob),
