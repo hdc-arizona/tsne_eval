@@ -2,13 +2,16 @@ importScripts('lib/d3.js');
 
 var xArray;
 var yArray;
+var xDomain = [1e100, -1e100];
 
 dispatch = {
-    setYArray: function(e) {
-        yArray = new Float32Array(e.data.y.length);
-        xArray = new Float32Array(e.data.y.length);
+    setXArray: function(e) {
+        xArray = new Float32Array(e.data.x.length);
+        yArray = new Float32Array(e.data.x.length);
         for (var i=0; i<yArray.length; ++i) {
-            xArray[i] = Math.sqrt(e.data.y[i]);
+            xArray[i] = Math.sqrt(e.data.x[i]);
+            xDomain[0] = Math.min(xDomain[0], xArray[i]);
+            xDomain[1] = Math.max(xDomain[1], xArray[i]);
         }
     },
     compute: function(e) {
@@ -28,8 +31,7 @@ dispatch = {
                 max = Math.max(max, d);
             }
         }
-        debugger;
-        var xScale = d3.scale.linear().domain(e.data.xDomain).range(e.data.xRange);
+        var xScale = d3.scale.linear().domain(xDomain).range(e.data.xRange);
         var yScale = d3.scale.linear().domain([min, max]).range([e.data.yRange[1]-0.01, e.data.yRange[0]]).clamp(true); // uuugly
         var dx = e.data.xRange[1] - e.data.xRange[0],
             dy = e.data.yRange[1] - e.data.yRange[0];

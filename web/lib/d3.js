@@ -7501,6 +7501,13 @@
       domain = x.map(Number);
       return rescale();
     };
+    scale.domainSegmented = function(x, n) {
+      var mn = x[0], d = x[1] - mn, domain = [];
+      n -= 1;
+      for (var i=0; i<=n; ++i)
+        domain.push(mn + d * i / n);
+      return scale.domain(domain);
+    };
     scale.range = function(x) {
       if (!arguments.length) return range;
       range = x;
@@ -7609,6 +7616,13 @@
       linear.domain((domain = x.map(Number)).map(log));
       return scale;
     };
+    scale.domainSegmented = function(x, n) {
+      var mn = x[0], mx = x[1], domain = [];
+      n -= 1;
+      for (var i=0; i<=n; ++i)
+        domain.push(Math.pow(mn, (n-i)/n) * Math.pow(mx, i/n));
+      return scale.domain(domain);
+    };
     scale.base = function(_) {
       if (!arguments.length) return base;
       base = +_;
@@ -7674,6 +7688,13 @@
       if (!arguments.length) return domain;
       linear.domain((domain = x.map(Number)).map(powp));
       return scale;
+    };
+    scale.domainSegmented = function(x, n) {
+      var mn = x[0], d = x[1] - mn, domain = [];
+      n -= 1;
+      for (var i=0; i<=n; ++i)
+        domain.push(mn + d * Math.pow(i/n, 1/exponent));
+      return scale.domain(domain);
     };
     scale.ticks = function(m) {
       return d3_scale_linearTicks(domain, m);
